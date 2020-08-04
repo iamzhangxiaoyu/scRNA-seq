@@ -1,0 +1,41 @@
+---
+title: "test2"
+author: "Xiaoyu"
+date: "2/12/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = F)
+knitr::opts_chunk$set(message  = F) 
+```
+```{r}
+library(Seurat)
+library(tidyverse)
+library(dplyr)
+library(stringr)
+aggr.data <- Read10X(data.dir = "aggr")
+aggr <- CreateSeuratObject(counts = aggr.data, project = "aggr", min.cells = 3, min.features = 200)
+aggr
+
+timePoints <- sapply(colnames(aggr), function(x) unlist(strsplit(x, "\\-"))[2]) 
+timePoints <-ifelse(timePoints == '1', 'Day_2', 
+                    ifelse(timePoints == '2', 'Day_4',
+                           ifelse(timePoints == '3', 'Day_3', 'Day_0')))
+table(timePoints)
+aggr <- AddMetaData(object = aggr, metadata = timePoints, col.name = 'TimePoints')
+table(aggr@meta.data$TimePoints)
+
+aggr[["percent.mt"]] <- PercentageFeatureSet(aggr, pattern = "^mt-")
+VlnPlot(aggr, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, group.by = 'TimePoints')
+aggr <- NormalizeData(aggr, normalization.method = "LogNormalize", scale.factor = 10000)
+all.genes <- rownames(aggr)
+aggr <- ScaleData(aggr,features = all.genes)
+aggr <- FindVariableFeatures(aggr, selection.method = "vst", nfeatures = 5000)
+aggr <- RunPCA(aggr, features = VariableFeatures(object = aggr), verbose = FALSE)
+aggr<- RunTSNE(aggr, dims = 1:20)
+DimPlot(aggr, reduction = "tsne", label = TRUE, group.by = 'TimePoints')
+FeaturePlot(aggr, features = c("Ddx4", "Gfra1", "Stra8", "Spo11", "Dmc1", "Spata22", "Meiob"), reduction = "tsne")
+```
+
